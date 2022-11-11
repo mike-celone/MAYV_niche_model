@@ -14,6 +14,7 @@ library(dismo)
 library(spThin)
 library(sf)
 library(seegSDM)
+library(maptools)
 setwd("C:/Users/Mike/OneDrive - usuhs.edu/MAYV/Prediction project")
 
 # clear workspace
@@ -173,10 +174,10 @@ model_list <-   lapply(data_list,
                        wt = function(id) ifelse(id == 1, 1, sum(id)/sum(1-id)),
                        verbose = TRUE,
                        #Default parameter settings
-                       #tree.complexity = 4,
-                       #learning.rate = 0.01,
-                       #bag.fraction = 0.75,
-                       #n.trees = 10,
+                       tree.complexity = 4,
+                       learning.rate = 0.01,
+                       bag.fraction = 0.75,
+                       n.trees = 10,
                        n.folds = 10,
                        max.trees = 10000,
                        step.size = 10)
@@ -203,16 +204,16 @@ stats <- do.call("rbind", stat_lis)
 #generate the relative influence plot
 relinf <- seegSDM::getRelInf(model_list, plot = TRUE)
 
-#generate the effect plots
-#effect <- seegSDM::getEffectPlots(model_list, plot = TRUE)
-
-#generate custom PDP with rug plots
+#--generate partial dependence with rug plots--#
 
 #Loop through and extract the data from the model list
 effect.plot <- function(var, lis_no){
   
   list <- list()
-  p <- data_all %>% filter(id==1) %>% select(var)
+  
+  p <- data_all %>% 
+    filter(id==1) %>% 
+    select(var)
   
   for(i in 1:length(model_list)) {
     list[[i]] <- model_list[[i]]$effects[[lis_no]][2]
@@ -226,6 +227,7 @@ effect.plot <- function(var, lis_no){
     }
   
   x <- model_list[[lis_no]]$effects[[lis_no]][1]
+  
   final <- cbind(x, finaldf)
   
   plot <- ggplot(final, aes(x=final[,1], y=mean)) +
@@ -242,7 +244,6 @@ effect.plot <- function(var, lis_no){
 }
 
 evi_effect <- effect.plot("EVI", lis_no=2)
-
 lstDay_effect <- effect.plot("LST_Day", lis_no=3)
 lstNight_effect <- effect.plot("LST_Night", lis_no=4)
 rain_effect <- effect.plot("Rainfall", lis_no=5)
@@ -263,3 +264,39 @@ cowplot::plot_grid(evi_effect,
 
 writeRaster(mean, "mean.tif", format = "GTiff")
 writeRaster(sd, "sd.tif", format = "GTiff")
+
+#---Estimate population at risk using the GPW raster---#
+
+# Bring in the population raster and the 
+pop_count <- raster("gpw_v4_population_count_rev11_2020_2pt5_min.tif")
+
+# Extract prediction values at each occurrence point
+extract_occ_values <- extract(mean, occ_pts_final, df = T)
+
+# Determine the value that encompasses 90% of occurrence points
+threshold <- quantile(extract_occ_values[,2], probs = .1)
+
+# convert prediction map to binary
+reclass <- function(x) {
+  ifelse(x <=  0.488, 0,
+  ifelse(x >  0.488, 1, NA)) }
+
+binary_map <- calc(mean_prediction, fun = reclass)
+
+# Crop population map to our study area
+pop_crop <- crop(pop_count, binary_map) 
+pop_mask <- mask(pop_crop, binary_map)
+
+# Resample population to the same resolution
+pop_rsmpld <- resample(pop_mask, binary_map)
+
+# Multiply binary map and population raster
+count <- binary_map*pop_rsmpld
+
+# Sum the population pixel values across each country
+data("wrld_simpl")
+pop_sum <- extract(count, 
+                   SpatialPolygons(wrld_simpl@polygons))
+
+df <- data.frame(ISO3=wrld_simpl$ISO3, 
+                 SUM=unlist(lapply(pop_sum, sum, na.rm=T)))
