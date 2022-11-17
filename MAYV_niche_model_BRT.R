@@ -23,7 +23,7 @@ cv_list <- list()
 # set up folder for model output
 dir.create(paste("BRT_model_results_", today, sep=""))
 
-for (i in 21:30){
+for (i in 31:40){
   
   model_list[[i]] <- seegSDM::runBRT(data_list[[i]],
                                      gbm.x = 4:13,
@@ -70,5 +70,5 @@ write.csv(stats, paste("cv_stats_", today, ".csv", sep = ""))
 # generate the relative influence plot
 relinf <- seegSDM::getRelInf(model_list, plot = TRUE)
 
-writeRaster(mean, "mean.tif", format = "GTiff")
-writeRaster(sd, "sd.tif", format = "GTiff")
+writeRaster(model_mean, "mean.tif", format = "GTiff")
+writeRaster(model_sd, "sd.tif", format = "GTiff")
