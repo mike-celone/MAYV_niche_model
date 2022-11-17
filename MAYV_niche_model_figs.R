@@ -78,7 +78,7 @@ join_br <- inner_join(brazil, cons_br, by=c("name"="State"))
 
 # Convert the score cat to factor
 join_br$Category <- factor(join_br$Category, 
-                        levels = c("Very High", "High", "Moderate", "Low", "Very Low"))
+                           levels = c("Very High", "High", "Moderate", "Low", "Very Low"))
 
 # Create the fig
 fig1b <- ggplot() + 
@@ -108,19 +108,19 @@ fig1_final <- plot_grid(fig1a, fig1b, align = "h", axis = "b",
 
 # Occurrence locations
 occ_pts_fig <- ggplot(data = country_map) +
-                      geom_sf() +
-                      coord_sf(xlim = c(-110, -32), ylim = c(-33, 25), expand = FALSE) +
-                      geom_jitter(data = occ_pts, aes(x = X_Coord, y = Y_Coord, fill = Host),
-                                  #alpha = 0.7, 
-                                  pch=21, size = 4) +
-                      scale_fill_brewer(palette="RdYlBu") +
-                      labs(x = "longitude", y = "latitude") +
-                      annotation_scale(location = "br", width_hint = 0.2, style = "tick") +
-                      annotation_north_arrow(location = "tr", which_north = "true", 
-                                             #pad_x = unit(1.5, "in"), pad_y = unit(0.5, "in"),
-                                             style = north_arrow_fancy_orienteering) +
-                      #theme(legend.position = "none") +
-                      theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
+  geom_sf() +
+  coord_sf(xlim = c(-110, -32), ylim = c(-33, 25), expand = FALSE) +
+  geom_jitter(data = occ_pts, aes(x = X_Coord, y = Y_Coord, fill = Host),
+              #alpha = 0.7, 
+              pch=21, size = 4) +
+  scale_fill_brewer(palette="RdYlBu") +
+  labs(x = "longitude", y = "latitude") +
+  annotation_scale(location = "br", width_hint = 0.2, style = "tick") +
+  annotation_north_arrow(location = "tr", which_north = "true", 
+                         #pad_x = unit(1.5, "in"), pad_y = unit(0.5, "in"),
+                         style = north_arrow_fancy_orienteering) +
+  #theme(legend.position = "none") +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
 
 # MAVY cases by year
 # Some studies did not report a precise year so take the average of the range of years
@@ -136,7 +136,7 @@ pts_new <- occ_pts %>%
 
 # Turn host type into a factor
 pts_new$Host <- factor(pts_new$Host, 
-                          levels = c("Animal", "Arthropod", "Human"))
+                       levels = c("Animal", "Arthropod", "Human"))
 
 # Create a stacked bar chart
 occ_pts_year <- ggplot(pts_new, aes(fill = Host, y = n, x = Year)) + 
@@ -162,18 +162,18 @@ meanras_df <- as.data.frame(model_mean, xy = TRUE) %>%
   na.omit()
 
 main <- ggplot()+
-          geom_raster(aes(x = x, y = y, fill = Suitability), data = meanras_df)+
-          geom_sf(fill = 'transparent', data = country_map)+
-          coord_sf(xlim = c(-120, -32), ylim = c(-40, 33), expand = FALSE) +
-          scale_fill_distiller(palette = "Spectral", breaks = c(0.1, 0.5, 0.9), labels = c("Low", "Med", "High")) +
-          theme_void() +
-          theme(
-            legend.justification = c(0, 1),
-            legend.position = c(.3, .4),
-            legend.key.size = unit(1, 'cm'), 
-            legend.title = element_text(size=14), 
-            legend.text = element_text(size=10)) +   
-          geom_rect(aes(xmin = -63, ymin = 9, xmax = -60, ymax = 11.5),
+  geom_raster(aes(x = x, y = y, fill = Suitability), data = meanras_df)+
+  geom_sf(fill = 'transparent', data = country_map)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-40, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "Spectral", breaks = c(0.1, 0.5, 0.9), labels = c("Low", "Med", "High")) +
+  theme_void() +
+  theme(
+    legend.justification = c(0, 1),
+    legend.position = c(.3, .4),
+    legend.key.size = unit(1, 'cm'), 
+    legend.title = element_text(size=14), 
+    legend.text = element_text(size=10)) +   
+  geom_rect(aes(xmin = -63, ymin = 9, xmax = -60, ymax = 11.5),
             fill = NA, 
             colour = "black",
             size = 0.8)   
