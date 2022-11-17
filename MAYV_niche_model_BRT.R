@@ -23,7 +23,7 @@ cv_list <- list()
 # set up folder for model output
 dir.create(paste("BRT_model_results_", today, sep=""))
 
-for (i in 31:40){
+for (i in 31:100){
   
   model_list[[i]] <- seegSDM::runBRT(data_list[[i]],
                                      gbm.x = 4:13,
