@@ -1,5 +1,7 @@
 library(seegSDM)
 
+today <- as.character(Sys.Date())
+
 # Number of bootstraps
 n_boot <- 100
 
@@ -23,7 +25,7 @@ cv_list <- list()
 # set up folder for model output
 dir.create(paste("BRT_model_results_", today, sep=""))
 
-for (i in 31:100){
+for (i in 1:n_boot){
   
   model_list[[i]] <- seegSDM::runBRT(data_list[[i]],
                                      gbm.x = 4:13,
@@ -52,7 +54,7 @@ for (i in 31:100){
   
 }
 
-# Stack the prediction maps
+ # Stack the prediction maps
 preds <- raster::stack(lapply(model_list, '[[', 4))
 
 # Calculate the mean across the 100 sub-models

@@ -7,11 +7,13 @@ library(gridExtra)
 library(dplyr)
 library(cowplot)
 library(readxl)
+library(raster)
 countries <- c("brazil", "peru", "argentina", "chile", "uruguay", "paraguay",
                "ecuador", "colombia", "panama", "suriname", "guyana", 
                "trinidad and tobago", "mexico", "belize", "costa rica", 
                "el salvador", "guatemala", "honduras", "nicaragua", "haiti",
-               "bolivia", "france", "venezuela", "dominican republic")
+               "bolivia", "france", "venezuela", "dominican republic", "puerto rico", 
+               "jamaica", "cuba")
 # World map
 country_map <- ne_countries(country = countries, scale = "medium", returnclass = "sf")
 
@@ -19,13 +21,110 @@ country_map <- ne_countries(country = countries, scale = "medium", returnclass =
 brazil <- ne_states(country = "brazil", returnclass = "sf")
 
 # Bring in the occurrence data
-occ_pts <- read_excel("All_Hosts_occ_75km_9SEP22.xlsx") 
+occ_pts <- read_excel("All_Hosts_occ_75km_19Nov22.xlsx") 
 
 # Bring in consensus scores
 cons_country <- read.csv("Consensus_score_16NOV22.csv", fileEncoding="UTF-8-BOM")
 cons_brazil <- read.csv("Brazil_consensus_score_16NOV22.csv", fileEncoding="UTF-8-BOM")
 
+# Bring in the model mean and SD tif layers
+model_mean <- raster("BRT_all_host_layers_5OCT22/mean_allhost_5OCT22.tif")
+model_sd <- raster("BRT_all_host_layers_5OCT22/sd_allhost_5OCT22.tif")
+
 #----Fig 1----#
+# Covariate maps
+
+# Convert raster to dataframe
+list <- list()
+for (i in names){
+  
+  ras_df <- as.data.frame(predictors[[i]], xy = TRUE) %>% 
+    na.omit()
+  
+  list[[i]] <- ras_df 
+  
+}
+
+# Climatic variables
+lst_day <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = LST_Day), data = list$LST_Day)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "RdBu", direction = -1) + 
+  theme_void() 
+
+lst_night <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = LST_Night), data = list$LST_Night)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "RdBu", direction = -1) + 
+  theme_void() 
+
+rain <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Rainfall), data = list$Rainfall)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "YlGnBu", direction = +1) + 
+  theme_void() 
+
+climate <- plot_grid (lst_day, lst_night, rain)
+
+# Land cover/vegetation
+evi <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = EVI), data = list$EVI)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "Greens", direction = +1) + 
+  theme_void() 
+
+evergreen <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Evergreen), data = list$Evergreen)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "PRGn", direction = +1) + 
+  theme_void() 
+
+urban <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Urban), data = list$Urban)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "Spectral", direction = -1) + 
+  theme_void() 
+
+tcb <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = TCB), data = list$TCB)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "RdGy", direction = -1) + 
+  theme_void() 
+
+tcw <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = TCW), data = list$TCW)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "RdYlBu", direction = +1) + 
+  theme_void() 
+
+lc_veg <- plot_grid(evi, evergreen, urban, tcb, tcw)
+
+# Topography
+elevation <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Elevation), data = list$Elevation)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "BrBG", direction = +1) + 
+  theme_void() 
+
+slope <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Slope), data = list$Slope)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "Oranges", direction = +1) + 
+  theme_void() 
+
+top <- plot_grid(elevation, slope)
+
+fig1 <- plot_grid(evi, evergreen, lst_day, rain, lst_night, elevation, slope, urban, tcb, tcw, 
+                  nrow = 3, align = "hv", labels = "AUTO", label_size = 14)
+
+ggsave("Fig1.jpg", fig1, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, 
+       width = 35, 
+       height = 23,
+       units = "cm"
+       )
+
+#----Fig 2----#
 # Categorize the scores
 cons <- cons_country %>%
   mutate(
@@ -44,7 +143,7 @@ join$Category <- factor(join$Category,
                         levels = c("Very High", "High", "Moderate", "Low", "Very Low"))
 
 # Create the fig
-fig1a <- ggplot() + 
+fig2a <- ggplot() + 
   geom_sf(aes(fill = Category), data = join) +
   scale_fill_brewer(palette = "Spectral") + 
   geom_sf(fill = 'transparent', data = country_map)+
@@ -62,7 +161,7 @@ fig1a <- ggplot() +
     legend.title = element_text(size=14), 
     legend.text = element_text(size=10))
 
-#----Fig 1b----#
+#----Fig 2b----#
 # Categorize the scores
 cons_br <- cons_brazil %>%
   mutate(
@@ -81,7 +180,7 @@ join_br$Category <- factor(join_br$Category,
                            levels = c("Very High", "High", "Moderate", "Low", "Very Low"))
 
 # Create the fig
-fig1b <- ggplot() + 
+fig2b <- ggplot() + 
   geom_sf(aes(fill = Category), data = join_br) +
   scale_fill_brewer(palette = "Spectral") + 
   geom_sf(fill = 'transparent', data = country_map)+
@@ -100,11 +199,18 @@ fig1b <- ggplot() +
         axis.title.x=element_blank(),
         axis.title.y=element_blank())
 
-fig1_final <- plot_grid(fig1a, fig1b, align = "h", axis = "b", 
+fig2_final <- plot_grid(fig2a, fig2b, align = "h", axis = "b", 
                         rel_widths = c(1, 0.7), labels = c('A', 'B'), 
                         label_size = 18)
 
-#----Fig 2----#
+ggsave("Fig2.jpg", fig2_final, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, 
+       width = 30, 
+       height = 20,
+       units = "cm"
+       )
+
+#----Fig 3----#
 
 # Occurrence locations
 occ_pts_fig <- ggplot(data = country_map) +
@@ -150,15 +256,18 @@ occ_pts_year <- ggplot(pts_new, aes(fill = Host, y = n, x = Year)) +
         panel.background=element_rect(colour="black"))
 
 # Plot the map with bar chart as an inset
-fig2_final <- occ_pts_fig + annotation_custom(ggplotGrob(occ_pts_year), 
+fig3_final <- occ_pts_fig + annotation_custom(ggplotGrob(occ_pts_year), 
                                               xmin = -108, xmax = -80, 
                                               ymin = -30, ymax = -10)
 
-#---Fig 3---#
+ggsave("Fig3.jpg", fig3_final, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, width = 33, height = 15, units = "cm")
 
+#---Fig 4---#
+# Average model predictions
 # Convert raster to dataframe
 meanras_df <- as.data.frame(model_mean, xy = TRUE) %>% 
-  rename(Suitability = layer) %>%
+  rename(Suitability = mean_allhost_5OCT22) %>%
   na.omit()
 
 main <- ggplot()+
@@ -178,7 +287,7 @@ main <- ggplot()+
             colour = "black",
             size = 0.8)   
 
-fig3_final <- ggdraw(main) +
+fig4a <- ggdraw(main) +
   draw_plot(
     {
       main + 
@@ -193,25 +302,29 @@ fig3_final <- ggdraw(main) +
     width = 0.2, 
     height = 0.2)
 
-#---Fig 4---#
-
+# Model uncertainty
 # Convert raster to dataframe
 sdras_df <- as.data.frame(model_sd, xy = TRUE) %>% 
-  rename(Uncertainty = layer) %>%
+  rename(Uncertainty = sd_allhost_5OCT22) %>%
   na.omit()
 
-Fig4_final <- ggplot()+
+fig4b <- ggplot()+
   geom_raster(aes(x = x, y = y, fill = Uncertainty), data = sdras_df)+
   geom_sf(fill = 'transparent', data = country_map)+
   coord_sf(xlim = c(-120, -32), ylim = c(-40, 33), expand = FALSE) +
-  scale_fill_distiller(palette = "GnBu", trans = "reverse", breaks = c(0.1, 0.5), labels = c("Low", "High")) +
+  scale_fill_distiller(palette = "GnBu", direction = +1, breaks = c(0.03, 0.3), labels = c("Low", "High")) +
   theme_void() +
   theme(
     legend.justification = c(0, 1),
     legend.position = c(.3, .4),
     legend.key.size = unit(1, 'cm'), 
     legend.title = element_text(size=14), 
-    legend.text = element_text(size=10))    
+    legend.text = element_text(size=10)) 
+
+fig4_final <- plot_grid(fig4a, fig4b)
+
+ggsave("Fig4.jpg", fig4_final, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, width = 33, height = 15, units = "cm")
 
 #---Fig 5---#
 
@@ -273,3 +386,6 @@ fig5_final <- cowplot::plot_grid(lstNight_effect, rain_effect, evi_effect,
 cowplot::plot_grid(evi_effect, evergreen_effect, lstDay_effect, lstNight_effect,
                    rain_effect, tcb_effect, elev_effect, slope_effect, tcw_effect,
                    urban_effect, nrow = 2)
+
+#---Additional figs---#
+

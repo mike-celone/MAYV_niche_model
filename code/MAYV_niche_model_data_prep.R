@@ -1,22 +1,13 @@
-######################################
-#Mayaro Virus niche model development#
-#Boosted regression tree model       #
-#Created August 30, 2022             #
-#Michael Celone                      #
-######################################
 
 # Load required packages
 library(SDMtune)
 library(ggplot2)
 library(raster)
-library(readxl)
 library(dplyr)
 library(dismo)
 library(spThin)
 library(sf)
 library(seegSDM)
-library(maptools)
-library(SDMtune)
 
 # Set today's date
 today <- as.character(Sys.Date())
