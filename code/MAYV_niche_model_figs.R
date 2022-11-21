@@ -31,6 +31,28 @@ cons_brazil <- read.csv("Brazil_consensus_score_16NOV22.csv", fileEncoding="UTF-
 model_mean <- raster("BRT_all_host_layers_5OCT22/mean_allhost_5OCT22.tif")
 model_sd <- raster("BRT_all_host_layers_5OCT22/sd_allhost_5OCT22.tif")
 
+# Bring in raster files 
+# These have been processed in ArcGIS to ensure matching extent and resolution
+setwd("C:/Users/Mike/Dropbox/MAYV_risk_modeling/covs_22Sep")
+rast_files <- list.files(pattern ='.asc$', all.files=TRUE) 
+
+# Create a raster stack
+predictors <- stack(rast_files)
+
+# Fix up the layer names
+names <- c("Evergreen", 
+           "EVI", 
+           "LST_Day",
+           "LST_Night", 
+           "Rainfall", 
+           "TCB", 
+           "TCW", 
+           "Urban",
+           "Elevation",  
+           "Slope")
+
+names(predictors) <- names
+
 #----Fig 1----#
 # Covariate maps
 
@@ -64,7 +86,14 @@ rain <- ggplot()+
   scale_fill_distiller(palette = "YlGnBu", direction = +1) + 
   theme_void() 
 
-climate <- plot_grid (lst_day, lst_night, rain)
+fig1a <- plot_grid(lst_day, lst_night, rain, nrow = 1, labels = c('A', 'B', 'C'))
+
+ggsave("Fig1a.jpg", fig1a, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, 
+       width = 35, 
+       height = 12,
+       units = "cm"
+)
 
 # Land cover/vegetation
 evi <- ggplot()+
@@ -85,6 +114,8 @@ urban <- ggplot()+
   scale_fill_distiller(palette = "Spectral", direction = -1) + 
   theme_void() 
 
+lc <- plot_grid(evi, evergreen, urban, nrow = 1, labels = c('D','E','F'))
+
 tcb <- ggplot()+
   geom_raster(aes(x = x, y = y, fill = TCB), data = list$TCB)+
   coord_sf(xlim = c(-120, -32), ylim = c(-50, 33), expand = FALSE) +
@@ -97,8 +128,17 @@ tcw <- ggplot()+
   scale_fill_distiller(palette = "RdYlBu", direction = +1) + 
   theme_void() 
 
-lc_veg <- plot_grid(evi, evergreen, urban, tcb, tcw)
+tc <- plot_grid(tcb, tcw, nrow = 1, labels = c('G','H'))
 
+fig1b <- plot_grid(lc, tc, nrow = 2)
+
+ggsave("Fig1b.jpg", fig1b, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, 
+       width = 28, 
+       height = 17,
+       units = "cm"
+)
+  
 # Topography
 elevation <- ggplot()+
   geom_raster(aes(x = x, y = y, fill = Elevation), data = list$Elevation)+
@@ -112,15 +152,13 @@ slope <- ggplot()+
   scale_fill_distiller(palette = "Oranges", direction = +1) + 
   theme_void() 
 
-top <- plot_grid(elevation, slope)
+fig1c <- plot_grid(elevation, slope, nrow = 1, align = "hv", 
+                  labels = c('I','J'))
 
-fig1 <- plot_grid(evi, evergreen, lst_day, rain, lst_night, elevation, slope, urban, tcb, tcw, 
-                  nrow = 3, align = "hv", labels = "AUTO", label_size = 14)
-
-ggsave("Fig1.jpg", fig1, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+ggsave("Fig1c.jpg", fig1c, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
        dpi = 300, 
        width = 35, 
-       height = 23,
+       height = 12,
        units = "cm"
        )
 
@@ -388,4 +426,67 @@ cowplot::plot_grid(evi_effect, evergreen_effect, lstDay_effect, lstNight_effect,
                    urban_effect, nrow = 2)
 
 #---Additional figs---#
+# Supplementary Fig1
+all_host <- raster("C:/Users/Mike/Dropbox/MAYV_risk_modeling/BRT_all_host_layers_5OCT22/mean_allhost_5OCT22.tif")
+human_only <- raster("C:/Users/Mike/Dropbox/MAYV_risk_modeling/BRT_human_only_layers_17NOV22/mean_human_only_20NOV22.tif")
 
+# Convert raster to dataframe
+meanras_df <- as.data.frame(human_only, xy = TRUE) %>% 
+  rename(Suitability = mean_human_only_20NOV22) %>%
+  na.omit()
+
+main <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Suitability), data = meanras_df)+
+  geom_sf(fill = 'transparent', data = country_map)+
+  coord_sf(xlim = c(-120, -32), ylim = c(-40, 33), expand = FALSE) +
+  scale_fill_distiller(palette = "Spectral", breaks = c(0.1, 0.5, 0.9), labels = c("Low", "Med", "High")) +
+  theme_void() +
+  theme(
+    legend.justification = c(0, 1),
+    legend.position = c(.3, .4),
+    legend.key.size = unit(1, 'cm'), 
+    legend.title = element_text(size=14), 
+    legend.text = element_text(size=10)) +   
+  geom_rect(aes(xmin = -63, ymin = 9, xmax = -60, ymax = 11.5),
+            fill = NA, 
+            colour = "black",
+            size = 0.8)   
+
+human_only_map <- ggdraw(main) +
+  draw_plot(
+    {
+      main + 
+        coord_sf(
+          xlim = c(-63, -60),
+          ylim = c(9, 11.5),
+          expand = FALSE) +
+        theme(legend.position = "none")
+    },
+    x = 0.6, 
+    y = 0.8,
+    width = 0.2, 
+    height = 0.2)
+
+# Calulate the difference between the two models
+diff <- all_host - human_only
+
+# Convert raster to dataframe
+diff_df <- as.data.frame(diff, xy = TRUE) %>% 
+  rename(Difference=layer) %>%
+  na.omit()
+
+plot_dif <- ggplot()+
+  geom_raster(aes(x = x, y = y, fill = Difference), data = diff_df) +
+  geom_col() +
+  scale_fill_gradient2(low = "black",
+                       mid = "white",
+                       high = "red",
+                       midpoint = 0) +
+  geom_sf(fill = 'transparent', data = country_map) +
+  coord_sf(xlim = c(-120, -32), ylim = c(-40, 33), expand = FALSE) +
+  theme_void()
+
+ggsave("Suppl1.jpg", human_only_map, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, width = 20, height = 15, units = "cm")
+ggsave("Suppl2.jpg", plot_dif, path = "C:/Users/Mike/Dropbox/MAYV_risk_modeling/Manuscript",
+       dpi = 300, width = 20, height = 15, units = "cm")
