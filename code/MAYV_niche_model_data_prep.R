@@ -57,7 +57,7 @@ occ_pts_thin <- thin(occ_pts,
 
 # Turn the spThin list into a dataframe
 occ_pts_final <- as.data.frame(occ_pts_thin) %>%
-  rename(x = Latitude, y = Longitude) %>%
+  dplyr::rename(x = Latitude, y = Longitude) %>%
   dplyr::select(x, y)
 
 #-------------------Background data-----------------------#
